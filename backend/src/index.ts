@@ -1,18 +1,15 @@
 import express from 'express';
-import cors from 'cors';
-import routes from './routes';
+import mqtt from './mqtt/client'; // Import MQTT client
+import authRoutes from './routes/auth';
 
 const app = express();
 
-app.use(cors());
 app.use(express.json());
+app.use('/auth', authRoutes);
 
-app.use('/api', routes);
+const PORT = process.env.PORT || 5000;
 
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal error', detail: String(err) });
+app.listen(PORT, () => {
+  console.log(`✓ Server running on port ${PORT}`);
+  console.log('✓ MQTT client initialized');
 });
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log('Backend listening on', port));

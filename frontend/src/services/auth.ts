@@ -1,55 +1,59 @@
-export interface User {
-  id: string;
-  email: string;
-  role: 'customer' | 'admin';
-}
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
+import { initializeApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
-const TOKEN_KEY = 'auth_token';
-const ROLE_KEY = 'auth_role';
+const firebaseConfig = {
+  apiKey: "AIzaSyDLK2SbaQlGePXZc4qhtMfq9hOeX24kyOA",
+  authDomain: "bloomeye-8a733.firebaseapp.com",
+  databaseURL: "https://bloomeye-8a733-default-rtdb.firebaseio.com",
+  projectId: "bloomeye-8a733",
+  storageBucket: "bloomeye-8a733.firebasestorage.app",
+  messagingSenderId: "307937534966",
+  appId: "1:307937534966:web:b0880d5e49a690d7f3ddd7",
+  measurementId: "G-EHQZ55EGZD"
+};
 
-export async function login(email: string, password: string): Promise<AuthResponse> {
-  const res = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  });
-  if (!res.ok) throw new Error('Login failed');
-  const data: AuthResponse = await res.json();
-  storeAuth(data.token, data.user.role);
-  return data;
-}
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
 
-export async function signup(email: string, password: string, role: 'customer' | 'admin'): Promise<AuthResponse> {
-  const res = await fetch('/api/auth/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, role })
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`Signup failed (${res.status}) ${text}`);
-  const data = JSON.parse(text);
-  storeAuth(data.token, data.user.role);
-  return data;
+export async function signup(email: string, password: string) {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const token = await userCredential.user.getIdToken();
+    localStorage.setItem('token', token);
+    localStorage.setItem('role', 'user');
+    return { success: true, user: userCredential.user };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }
 
-function storeAuth(token: string, role: User['role']) {
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(ROLE_KEY, role);
+export async function login(email: string, password: string) {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const token = await userCredential.user.getIdToken();
+    localStorage.setItem('token', token);
+    localStorage.setItem('role', 'user');
+    return { success: true, user: userCredential.user };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function logout() {
+  try {
+    await signOut(auth);
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem('token');
 }
 
-export function getRole(): User['role'] | null {
-  return localStorage.getItem(ROLE_KEY) as User['role'] | null;
-}
-
-export function logout() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(ROLE_KEY);
+export function getRole() {
+  return localStorage.getItem('role') || 'user';
 }

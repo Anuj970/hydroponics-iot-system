@@ -12,6 +12,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
+import { listenToHydroData } from '../services/firebase';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -54,7 +55,12 @@ export default function Dashboard() {
   const [uptime, setUptime] = useState('00:00:00');
   const startTimeRef = useRef(Date.now());
 
-  // Update clock & uptime
+  const [hydroData, setHydroData] = useState<any>({
+    temp: 0,
+    humidity: 0,
+    pH: 0
+  });
+
   useEffect(() => {
     const interval = setInterval(() => {
       setTime(new Date().toLocaleTimeString());
@@ -67,7 +73,6 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Initialize & update chart
   useEffect(() => {
     const labels = Array.from({ length: 12 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
     const tempData = sensors[0];
@@ -98,6 +103,24 @@ export default function Dashboard() {
         }
       ]
     });
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = listenToHydroData((data) => {
+      if (data) {
+        setHydroData(data);
+        // Sync live data to sensors state
+        setSensors(prevSensors =>
+          prevSensors.map(sensor => {
+            if (sensor.name === 'Temperature') return { ...sensor, value: data.temp };
+            if (sensor.name === 'Humidity') return { ...sensor, value: data.humidity };
+            if (sensor.name === 'pH Level') return { ...sensor, value: data.pH };
+            return sensor;
+          })
+        );
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
   const getStatusColor = (status: string) => {
@@ -133,7 +156,7 @@ export default function Dashboard() {
       Array.from({ length: 5 }, () =>
         `${new Date().toLocaleString()},${sensors[0].value},${sensors[1].value},${sensors[2].value},${sensors[3].value}`
       ).join('\n');
-    
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -144,17 +167,20 @@ export default function Dashboard() {
 
   return (
     <div style={styles.wrapper}>
+
       {/* Header */}
       <header style={styles.header}>
         <div>
           <h2 style={styles.title}>🌱 Monitoring Dashboard</h2>
           <p style={styles.subtitle}>Real-time Hydroponics Data Stream</p>
         </div>
+
         <div style={styles.headerRight}>
           <div style={styles.timeCard}>
             <span style={styles.timeLabel}>Last Update</span>
             <span style={styles.timeValue}>{time}</span>
           </div>
+
           <button style={styles.btnExport} onClick={exportData}>📥 Export CSV</button>
           <div style={styles.profileIcon}>👤</div>
         </div>
@@ -177,10 +203,11 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Content Grid */}
+      {/* OVERVIEW */}
       {activeTab === 'overview' && (
         <div style={styles.content}>
-          {/* KPI Cards */}
+
+          {/* KPI CARDS */}
           <div style={styles.grid}>
             {sensors.map(sensor => (
               <div key={sensor.id} style={styles.kpiCard}>
@@ -194,11 +221,13 @@ export default function Dashboard() {
                     boxShadow: `0 0 8px ${getStatusColor(sensor.status)}`
                   }}></div>
                 </div>
+
                 <h3 style={styles.kpiTitle}>{sensor.name}</h3>
                 <div style={styles.kpiValue}>
                   {sensor.value}
                   <span style={styles.kpiUnit}>{sensor.unit}</span>
                 </div>
+
                 <div style={{
                   fontSize: '0.75rem',
                   marginTop: '0.5rem',
@@ -210,7 +239,7 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* Chart */}
+          {/* Chart Section */}
           <div style={styles.chartCard}>
             <div style={styles.chartHeader}>
               <h3>📊 Environmental Trends</h3>
@@ -220,6 +249,7 @@ export default function Dashboard() {
                 <option>7 Days</option>
               </select>
             </div>
+
             {chartData && (
               <div style={{ height: 350 }}>
                 <Line
@@ -235,7 +265,7 @@ export default function Dashboard() {
                     scales: {
                       x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
                       y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#f59e0b' } },
-                      y1: { position: 'right' as const, grid: { drawOnChartArea: false }, ticks: { color: '#3b82f6' } }
+                      y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#3b82f6' } }
                     }
                   }}
                 />
@@ -243,9 +273,8 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Controls & Logs */}
+          {/* Controls and Logs */}
           <div style={styles.bottomGrid}>
-            {/* Controls */}
             <div style={styles.controlCard}>
               <h3>🎮 Manual Override</h3>
               <div style={styles.controlList}>
@@ -271,7 +300,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Logs */}
             <div style={styles.logsCard}>
               <div style={styles.logsHeader}>
                 <h3>📋 Live Event Log</h3>
@@ -299,9 +327,11 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
         </div>
       )}
 
+      {/* Sensors Tab */}
       {activeTab === 'sensors' && (
         <div style={styles.content}>
           <h3>Detailed Sensor Data</h3>
@@ -317,6 +347,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Controls Tab */}
       {activeTab === 'controls' && (
         <div style={styles.content}>
           <h3>Advanced Controls</h3>
@@ -324,6 +355,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Analytics Tab */}
       {activeTab === 'analytics' && (
         <div style={styles.content}>
           <h3>Analytics & Reports</h3>
@@ -331,7 +363,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* System Status Sidebar (can be floating) */}
+      {/* System Status Sidebar */}
       <div style={styles.sysStatus}>
         <div style={styles.statusRow}>
           <span>Status:</span>
@@ -346,9 +378,12 @@ export default function Dashboard() {
           <span>2.4.0</span>
         </div>
       </div>
+
     </div>
   );
 }
+
+// ----- STYLES -----
 
 const styles: Record<string, React.CSSProperties> = {
   wrapper: {
@@ -414,121 +449,157 @@ const styles: Record<string, React.CSSProperties> = {
   content: { display: 'flex', flexDirection: 'column', gap: '2rem' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' },
   kpiCard: {
-    background: 'rgba(30, 41, 59, 0.7)',
-    backdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    padding: '1.5rem',
-    transition: 'all 0.3s'
-  },
-  kpiHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' },
-  kpiIcon: { fontSize: '1.8rem' },
-  kpiTitle: { margin: 0, fontSize: '0.95rem', color: '#94a3b8', fontWeight: 500 },
-  kpiValue: { fontSize: '1.8rem', fontWeight: 700, marginTop: '0.5rem' },
-  kpiUnit: { fontSize: '1rem', color: '#64748b', marginLeft: '0.2rem' },
-  chartCard: {
-    background: 'rgba(30, 41, 59, 0.7)',
-    backdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    padding: '1.5rem'
-  },
-  chartHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' },
-  chartSelect: {
-    background: 'rgba(0,0,0,0.2)',
-    color: '#f1f5f9',
-    border: '1px solid rgba(255,255,255,0.1)',
-    padding: '0.5rem 0.8rem',
-    borderRadius: 6,
-    cursor: 'pointer'
-  },
-  bottomGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' },
-  controlCard: {
-    background: 'rgba(30, 41, 59, 0.7)',
-    backdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    padding: '1.5rem'
-  },
-  controlList: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  controlItem: {
-    background: 'rgba(0,0,0,0.2)',
-    padding: '1rem',
+    background: 'rgba(30, 41, 59, 0.8)',
     borderRadius: 12,
+    padding: '1.8rem 2rem',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+    position: 'relative'
+  },
+  kpiHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  kpiIcon: { fontSize: '1.8rem' },
+  kpiTitle: { fontSize: '1.2rem', fontWeight: 700, marginBottom: 4 },
+  kpiValue: { fontSize: '2.2rem', fontWeight: 700, fontFamily: "'JetBrains Mono'" },
+  kpiUnit: { fontSize: '1rem', fontWeight: 600, marginLeft: 6, color: '#94a3b8' },
+  chartCard: {
+    background: 'rgba(30, 41, 59, 0.8)',
+    borderRadius: 12,
+    padding: '1.5rem 2rem',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+    height: 400
+  },
+  chartHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  controlName: { margin: 0, fontSize: '1rem', fontWeight: 700 },
-  controlStatus: { margin: '0.3rem 0 0', fontSize: '0.85rem', color: '#94a3b8' },
-  toggleBtn: {
-    padding: '0.6rem 1.2rem',
-    border: 'none',
-    borderRadius: 8,
-    color: '#fff',
-    fontWeight: 700,
-    cursor: 'pointer',
-    transition: 'all 0.3s'
-  },
-  logsCard: {
-    background: 'rgba(30, 41, 59, 0.7)',
-    backdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    padding: '1.5rem'
-  },
-  logsHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' },
-  btnClear: {
-    background: 'transparent',
-    border: '1px solid rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    marginBottom: '1rem',
     color: '#94a3b8',
-    padding: '0.4rem 0.8rem',
+    fontWeight: 600
+  },
+  chartSelect: {
+    background: 'rgba(15, 23, 42, 0.8)',
+    color: '#94a3b8',
+    border: '1px solid #334155',
     borderRadius: 6,
+    padding: '0.2rem 0.5rem',
+    fontWeight: 600,
     cursor: 'pointer'
   },
-  logsList: { display: 'flex', flexDirection: 'column', gap: '0.8rem', maxHeight: 300, overflowY: 'auto' },
+  bottomGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1.5fr 1fr',
+    gap: '2rem'
+  },
+  controlCard: {
+    background: 'rgba(30, 41, 59, 0.8)',
+    borderRadius: 12,
+    padding: '1.5rem 2rem',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.4)'
+  },
+  controlList: { display: 'flex', flexDirection: 'column', gap: 12 },
+  controlItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: 'rgba(15, 23, 42, 0.7)',
+    padding: '0.6rem 1rem',
+    borderRadius: 8,
+    boxShadow: 'inset 0 0 4px rgba(0,0,0,0.3)'
+  },
+  controlName: { margin: 0, fontWeight: 700, fontSize: '1rem' },
+  controlStatus: { margin: 0, color: '#94a3b8', fontWeight: 600 },
+  toggleBtn: {
+    border: 'none',
+    borderRadius: 8,
+    padding: '0.4rem 1rem',
+    fontWeight: 600,
+    color: '#fff',
+    cursor: 'pointer',
+    transition: 'background 0.3s'
+  },
+  logsCard: {
+    background: 'rgba(30, 41, 59, 0.8)',
+    borderRadius: 12,
+    padding: '1.5rem 2rem',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+    overflowY: 'auto',
+    maxHeight: 360
+  },
+  logsHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12
+  },
+  btnClear: {
+    background: '#ef4444',
+    border: 'none',
+    borderRadius: 6,
+    padding: '0.3rem 0.8rem',
+    color: '#fff',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
+  logsList: {
+    maxHeight: 300,
+    overflowY: 'auto'
+  },
   logRow: {
     display: 'grid',
-    gridTemplateColumns: '80px 80px 1fr 100px',
-    gap: '0.8rem',
-    padding: '0.8rem',
-    background: 'rgba(0,0,0,0.1)',
-    borderRadius: 8,
-    fontSize: '0.85rem'
+    gridTemplateColumns: '80px 80px 1fr 60px',
+    gap: 8,
+    padding: '0.3rem 0',
+    borderBottom: '1px solid rgba(255,255,255,0.05)',
+    fontSize: '0.9rem',
+    alignItems: 'center'
   },
-  logTime: { color: '#64748b', fontFamily: "'JetBrains Mono'" },
-  logBadge: { padding: '0.3rem 0.6rem', borderRadius: 4, fontSize: '0.7rem', fontWeight: 600 },
-  logDetails: { color: '#cbd5e1' },
-  logValue: { color: '#3b82f6', fontFamily: "'JetBrains Mono'" },
-  table: { display: 'flex', flexDirection: 'column', gap: '0.8rem' },
+  logTime: { color: '#94a3b8', fontFamily: "'JetBrains Mono'" },
+  logBadge: {
+    padding: '0.1rem 0.5rem',
+    borderRadius: 6,
+    fontWeight: 700,
+    fontSize: '0.75rem',
+    textAlign: 'center'
+  },
+  logDetails: { color: '#cbd5e1', fontWeight: 600 },
+  logValue: { fontWeight: 700, color: '#fbbf24' },
+  table: {
+    background: 'rgba(30, 41, 59, 0.8)',
+    borderRadius: 12,
+    padding: '1.5rem',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.4)'
+  },
   tableRow: {
-    background: 'rgba(30, 41, 59, 0.7)',
-    padding: '1rem',
-    borderRadius: 10,
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr',
-    gap: '1rem',
-    border: '1px solid rgba(255,255,255,0.05)'
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '0.7rem 0',
+    borderBottom: '1px solid rgba(255,255,255,0.05)',
+    fontWeight: 600,
+    fontSize: '1rem',
+    color: '#f1f5f9'
   },
   comingSoon: {
-    background: 'rgba(59, 130, 246, 0.1)',
-    color: '#60a5fa',
-    padding: '1.5rem',
-    borderRadius: 10,
-    borderLeft: '4px solid #3b82f6',
-    margin: 0
+    color: '#64748b',
+    fontSize: '1.2rem',
+    textAlign: 'center',
+    marginTop: '4rem',
+    fontWeight: 600
   },
   sysStatus: {
     position: 'fixed',
-    bottom: '2rem',
-    right: '2rem',
-    background: 'rgba(30, 41, 59, 0.9)',
-    backdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255,255,255,0.1)',
+    top: 32,
+    right: 32,
+    background: 'rgba(15, 23, 42, 0.85)',
     borderRadius: 12,
-    padding: '1rem',
-    fontSize: '0.85rem'
+    padding: '1rem 1.5rem',
+    boxShadow: '0 0 12px rgba(0,0,0,0.7)',
+    color: '#94a3b8',
+    fontWeight: 600,
+    fontSize: '0.9rem',
+    width: 160
   },
-  statusRow: { display: 'flex', justifyContent: 'space-between', gap: '2rem', marginBottom: '0.5rem', color: '#94a3b8' }
+  statusRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: 8
+  }
 };
-

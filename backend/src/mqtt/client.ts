@@ -1,42 +1,34 @@
 import mqtt from 'mqtt';
+import { saveSensorDataToFirebase } from '../services/sensorService';
 
-const MQTT_BROKER_URL = 'mqtt://your-broker-url'; // Replace with your MQTT broker URL
-const TOPIC_SENSOR_DATA = 'hydroponics/sensorData';
-const TOPIC_RELAY_CONTROL = 'hydroponics/relayControl';
+const client = mqtt.connect('mqtt://broker.hivemq.com:1883');
 
-let client: mqtt.MqttClient;
+client.on('connect', () => {
+  console.log('✓ Connected to MQTT broker');
+  client.subscribe('sensors/#', (err) => {
+    if (err) console.error('Subscribe error:', err);
+    else console.log('✓ Subscribed to sensors/#');
+  });
+});
 
-export const connectMQTT = () => {
-    client = mqtt.connect(MQTT_BROKER_URL);
+client.on('message', async (topic, message) => {
+  console.log(`📨 MQTT Message - Topic: ${topic}, Message: ${message.toString()}`);
+  
+  try {
+    const sensorData = JSON.parse(message.toString());
+    const sensorId = topic.split('/')[1]; // Extract from: sensors/sensor_001/data
+    
+    console.log(`💾 Saving to Firebase - Sensor: ${sensorId}, Data:`, sensorData);
+    
+    // Save to Firebase
+    await saveSensorDataToFirebase(sensorId, sensorData);
+  } catch (error) {
+    console.error('❌ Error processing MQTT message:', error);
+  }
+});
 
-    client.on('connect', () => {
-        console.log('Connected to MQTT broker');
-        client.subscribe(TOPIC_SENSOR_DATA, (err) => {
-            if (err) {
-                console.error('Failed to subscribe to sensor data topic:', err);
-            }
-        });
-    });
+client.on('error', (error) => {
+  console.error('❌ MQTT Error:', error);
+});
 
-    client.on('message', (topic, message) => {
-        if (topic === TOPIC_SENSOR_DATA) {
-            const sensorData = JSON.parse(message.toString());
-            console.log('Received sensor data:', sensorData);
-            // Handle sensor data processing here
-        }
-    });
-
-    client.on('error', (err) => {
-        console.error('MQTT Client Error:', err);
-    });
-};
-
-export const publishRelayCommand = (command: 'ON' | 'OFF') => {
-    client.publish(TOPIC_RELAY_CONTROL, command, (err) => {
-        if (err) {
-            console.error('Failed to publish relay command:', err);
-        } else {
-            console.log(`Relay command "${command}" published`);
-        }
-    });
-};
+export default client;

@@ -33,7 +33,6 @@ export default function App() {
   if (!token) {
     const allowed = ['#/login', '#/signup', '#/admin'];
     if (!allowed.includes(hash)) {
-      // force redirect to login
       window.location.hash = '#/login';
       return null;
     }
@@ -51,7 +50,6 @@ export default function App() {
       {hash === '#/services' && <Services />}
       {hash === '#/contact' && <Contact />}
       {role === 'admin' && hash === '#/admin-panel' && <AdminPanel />}
-      {/* Default fallback */}
       {!['#/', '#/about', '#/services', '#/contact', '#/admin-panel'].includes(hash) && <Dashboard />}
     </>
   );

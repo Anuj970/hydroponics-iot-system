@@ -1,30 +1,37 @@
-import { useEffect, useState } from 'react';
-import { fetchSensorData } from '../services/api';
-import type { SensorReading } from '../types';
+import { useState, useEffect } from 'react';
+import { listenToLatestReadings, listenToSensorInfo } from '../services/firebase';
 
-const useSensorData = () => {
-  const [sensorData, setSensorData] = useState<SensorReading[] | null>(null);
+export function useSensorData(sensorId: string) {
+  const [readings, setReadings] = useState<any[]>([]);
+  const [sensorInfo, setSensorInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let active = true;
-    const getData = async () => {
-      try {
-        const data = await fetchSensorData();
-        if (active) setSensorData(data);
-      } catch (err) {
-        if (active) setError(err);
-      } finally {
-        if (active) setLoading(false);
+    setLoading(true);
+    
+    // Listen to sensor info
+    const unsubscribeInfo = listenToSensorInfo(sensorId, (data) => {
+      setSensorInfo(data);
+    });
+
+    // Listen to latest readings
+    const unsubscribeReadings = listenToLatestReadings(sensorId, 10, (data) => {
+      if (data) {
+        const readingsArray = Object.entries(data).map(([key, value]: [string, any]) => ({
+          id: key,
+          ...value
+        }));
+        setReadings(readingsArray);
       }
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribeInfo();
+      unsubscribeReadings();
     };
-    getData();
-    const interval = setInterval(getData, 5000); // poll
-    return () => { active = false; clearInterval(interval); };
-  }, []);
+  }, [sensorId]);
 
-  return { sensorData, loading, error };
-};
-
-export default useSensorData;
+  return { readings, sensorInfo, loading, error };
+}
