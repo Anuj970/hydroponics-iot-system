@@ -71,14 +71,14 @@ export function listenToLedData(callback: (data: any) => void) {
   );
 }
 
-// Listen to Second data in real-time
-export function listenToSecondData(callback: (data: any) => void) {
-  const dataRef = ref(database, `second`);
+// Listen to Motor data in real-time
+export function listenToMotorData(callback: (data: any) => void) {
+  const dataRef = ref(database, `motor`);
 
   return onValue(
     dataRef,
     (snapshot: DataSnapshot) => {
-      console.log('✓ Second data received:', snapshot.val());
+      console.log('✓ Motor data received:', snapshot.val());
       callback(snapshot.val());
     },
     (error) => {
@@ -93,9 +93,9 @@ export function updateLedState(state: number) {
   return set(dataRef, { state });
 }
 
-// Update Second state on Firebase
-export function updateSecondState(state: number) {
-  const dataRef = ref(database, 'second');
+// Update Motor state on Firebase
+export function updateMotorState(state: number) {
+  const dataRef = ref(database, 'motor');
   return set(dataRef, { state });
 }
 

@@ -15,9 +15,9 @@ import {
 import {
   listenToSensorsData,
   listenToLedData,
-  listenToSecondData,
+  listenToMotorData,
   updateLedState,
-  updateSecondState
+  updateMotorState
 } from '../services/firebase';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
@@ -141,7 +141,7 @@ export default function Dashboard() {
       }
     });
 
-    const unsubscribeSecond = listenToSecondData((data) => {
+    const unsubscribeMotor = listenToMotorData((data) => {
       if (data && data.state !== undefined) {
         setRelays(prev =>
           prev.map(relay =>
@@ -153,7 +153,7 @@ export default function Dashboard() {
 
     return () => {
       unsubscribeLed();
-      unsubscribeSecond();
+      unsubscribeMotor();
     };
   }, []);
 
@@ -176,7 +176,7 @@ export default function Dashboard() {
     if (targetRelay.name === 'Grow Light') {
       updateLedState(nextValue).catch(err => console.error(err));
     } else if (targetRelay.name === 'Water Pump') {
-      updateSecondState(nextValue).catch(err => console.error(err));
+      updateMotorState(nextValue).catch(err => console.error(err));
     }
 
     setRelays(prev =>
