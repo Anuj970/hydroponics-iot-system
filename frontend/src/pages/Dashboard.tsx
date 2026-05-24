@@ -12,7 +12,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { 
+import {
   listenToSensorsData,
   listenToLedData,
   listenToSecondData,
@@ -169,16 +169,16 @@ export default function Dashboard() {
   const toggleRelay = (id: string) => {
     const targetRelay = relays.find(r => r.id === id);
     if (!targetRelay) return;
-    
+
     const nextStatus = !targetRelay.status;
     const nextValue = nextStatus ? 1 : 0;
-    
+
     if (targetRelay.name === 'Grow Light') {
       updateLedState(nextValue).catch(err => console.error(err));
     } else if (targetRelay.name === 'Water Pump') {
       updateSecondState(nextValue).catch(err => console.error(err));
     }
-    
+
     setRelays(prev =>
       prev.map(relay =>
         relay.id === id ? { ...relay, status: nextStatus } : relay

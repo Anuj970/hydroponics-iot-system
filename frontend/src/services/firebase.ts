@@ -22,9 +22,9 @@ console.log('✓ Firebase initialized');
 // Listen to hydro data in real-time
 export function listenToHydroData(callback: (data: any) => void) {
   console.log('📍 Setting up listener for hydro data');
-  
+
   const dataRef = ref(database, `hydro`);
-  
+
   return onValue(
     dataRef,
     (snapshot: DataSnapshot) => {
@@ -40,9 +40,9 @@ export function listenToHydroData(callback: (data: any) => void) {
 // Listen to sensors array data in real-time
 export function listenToSensorsData(callback: (data: any) => void) {
   console.log('📍 Setting up listener for sensors data');
-  
+
   const dataRef = ref(database, `sensors`);
-  
+
   return onValue(
     dataRef,
     (snapshot: DataSnapshot) => {
@@ -58,7 +58,7 @@ export function listenToSensorsData(callback: (data: any) => void) {
 // Listen to LED data in real-time
 export function listenToLedData(callback: (data: any) => void) {
   const dataRef = ref(database, `led`);
-  
+
   return onValue(
     dataRef,
     (snapshot: DataSnapshot) => {
@@ -74,7 +74,7 @@ export function listenToLedData(callback: (data: any) => void) {
 // Listen to Second data in real-time
 export function listenToSecondData(callback: (data: any) => void) {
   const dataRef = ref(database, `second`);
-  
+
   return onValue(
     dataRef,
     (snapshot: DataSnapshot) => {
