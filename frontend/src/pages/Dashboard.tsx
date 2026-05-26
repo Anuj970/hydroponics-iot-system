@@ -12,7 +12,13 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { listenToHydroData } from '../services/firebase';
+import {
+  listenToSensorsData,
+  listenToLedData,
+  listenToMotorData,
+  updateLedState,
+  updateMotorState
+} from '../services/firebase';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -106,21 +112,49 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = listenToHydroData((data) => {
-      if (data) {
-        setHydroData(data);
-        // Sync live data to sensors state
+    const unsubscribe = listenToSensorsData((data) => {
+      if (data && Array.isArray(data)) {
         setSensors(prevSensors =>
           prevSensors.map(sensor => {
-            if (sensor.name === 'Temperature') return { ...sensor, value: data.temp };
-            if (sensor.name === 'Humidity') return { ...sensor, value: data.humidity };
-            if (sensor.name === 'pH Level') return { ...sensor, value: data.pH };
+            const firebaseSensor = data.find(
+              (s: any) => s && s.name && s.name.toLowerCase() === sensor.name.toLowerCase()
+            );
+            if (firebaseSensor) {
+              return { ...sensor, value: firebaseSensor.value };
+            }
             return sensor;
           })
         );
       }
     });
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribeLed = listenToLedData((data) => {
+      if (data && data.state !== undefined) {
+        setRelays(prev =>
+          prev.map(relay =>
+            relay.name === 'Grow Light' ? { ...relay, status: data.state === 1 } : relay
+          )
+        );
+      }
+    });
+
+    const unsubscribeMotor = listenToMotorData((data) => {
+      if (data && data.state !== undefined) {
+        setRelays(prev =>
+          prev.map(relay =>
+            relay.name === 'Water Pump' ? { ...relay, status: data.state === 1 } : relay
+          )
+        );
+      }
+    });
+
+    return () => {
+      unsubscribeLed();
+      unsubscribeMotor();
+    };
   }, []);
 
   const getStatusColor = (status: string) => {
@@ -133,12 +167,24 @@ export default function Dashboard() {
   };
 
   const toggleRelay = (id: string) => {
+    const targetRelay = relays.find(r => r.id === id);
+    if (!targetRelay) return;
+
+    const nextStatus = !targetRelay.status;
+    const nextValue = nextStatus ? 1 : 0;
+
+    if (targetRelay.name === 'Grow Light') {
+      updateLedState(nextValue).catch(err => console.error(err));
+    } else if (targetRelay.name === 'Water Pump') {
+      updateMotorState(nextValue).catch(err => console.error(err));
+    }
+
     setRelays(prev =>
       prev.map(relay =>
-        relay.id === id ? { ...relay, status: !relay.status } : relay
+        relay.id === id ? { ...relay, status: nextStatus } : relay
       )
     );
-    addLog('control', relays.find(r => r.id === id)?.name || 'Device', 'Toggled');
+    addLog('control', targetRelay.name || 'Device', 'Toggled');
   };
 
   const addLog = (type: LogEntry['type'], details: string, value: string) => {

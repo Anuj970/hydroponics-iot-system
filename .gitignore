@@ -1,5 +1,5 @@
-﻿firebase-key.json
-node_modules/
+firebase-key.json
+**/node_modules/
 dist/
 build/
 .env

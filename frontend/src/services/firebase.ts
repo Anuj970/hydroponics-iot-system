@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getDatabase, ref, onValue, DataSnapshot } from "firebase/database";
+import { getDatabase, ref, onValue, set, DataSnapshot } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDLK2SbaQlGePXZc4qhtMfq9hOeX24kyOA",
@@ -22,9 +22,9 @@ console.log('✓ Firebase initialized');
 // Listen to hydro data in real-time
 export function listenToHydroData(callback: (data: any) => void) {
   console.log('📍 Setting up listener for hydro data');
-  
+
   const dataRef = ref(database, `hydro`);
-  
+
   return onValue(
     dataRef,
     (snapshot: DataSnapshot) => {
@@ -37,10 +37,28 @@ export function listenToHydroData(callback: (data: any) => void) {
   );
 }
 
+// Listen to sensors array data in real-time
+export function listenToSensorsData(callback: (data: any) => void) {
+  console.log('📍 Setting up listener for sensors data');
+
+  const dataRef = ref(database, `sensors`);
+
+  return onValue(
+    dataRef,
+    (snapshot: DataSnapshot) => {
+      console.log('✓ Sensors snapshot received:', snapshot.val());
+      callback(snapshot.val());
+    },
+    (error) => {
+      console.error('❌ Firebase error:', error);
+    }
+  );
+}
+
 // Listen to LED data in real-time
 export function listenToLedData(callback: (data: any) => void) {
   const dataRef = ref(database, `led`);
-  
+
   return onValue(
     dataRef,
     (snapshot: DataSnapshot) => {
@@ -51,6 +69,34 @@ export function listenToLedData(callback: (data: any) => void) {
       console.error('❌ Firebase error:', error);
     }
   );
+}
+
+// Listen to Motor data in real-time
+export function listenToMotorData(callback: (data: any) => void) {
+  const dataRef = ref(database, `motor`);
+
+  return onValue(
+    dataRef,
+    (snapshot: DataSnapshot) => {
+      console.log('✓ Motor data received:', snapshot.val());
+      callback(snapshot.val());
+    },
+    (error) => {
+      console.error('❌ Firebase error:', error);
+    }
+  );
+}
+
+// Update LED state on Firebase
+export function updateLedState(state: number) {
+  const dataRef = ref(database, 'led');
+  return set(dataRef, { state });
+}
+
+// Update Motor state on Firebase
+export function updateMotorState(state: number) {
+  const dataRef = ref(database, 'motor');
+  return set(dataRef, { state });
 }
 
 export { app, database };
